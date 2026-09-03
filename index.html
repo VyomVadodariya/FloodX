@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FLOODX — Action-Intelligence Flash-Flood Command System</title>
+    <meta name="description" content="AI-powered hyperlocal flash-flood intelligence and dynamic evacuation command system for hilly and mountainous regions of India.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- App Styling -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="command-theme">
+    <div id="app" class="app-container">
+        <!-- TOP NAVIGATION HEADER -->
+        <header class="app-header">
+            <div class="brand-block">
+                <div class="logo-mark">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="brand-title">
+                    <span class="brand-name">FLOODX</span>
+                    <span class="brand-tagline">PREDICT DANGER • PRIORITIZE PEOPLE • ADAPT EVACUATION</span>
+                </div>
+            </div>
+
+            <div class="header-controls">
+                <!-- DATA MODE BADGE (SCIENTIFIC TRANSPARENCY) -->
+                <div class="live-indicator-badge demo-mode-badge" id="demo-mode-indicator" title="Click to view Data Provenance & Methodology">
+                    <span class="pulse-dot dot-demo"></span>
+                    <span class="live-text" id="header-data-mode-text">● DEMO REPLAY</span>
+                    <span class="timestamp" id="header-timestamp">10:42:16</span>
+                </div>
+
+                <!-- SYSTEM OPERATIONAL MODE SWITCHER -->
+                <div class="selector-group">
+                    <label for="op-mode-select">OPERATIONAL MODE:</label>
+                    <select id="op-mode-select" class="ctrl-select mode-highlight">
+                        <option value="OPERATIONS" selected>MODE A — DEMO OPERATIONS</option>
+                        <option value="HISTORICAL">MODE B — HISTORICAL REPLAY</option>
+                    </select>
+                </div>
+
+                <!-- REGION SELECTOR -->
+                <div class="selector-group">
+                    <label for="region-select">REGION (INDIA):</label>
+                    <select id="region-select" class="ctrl-select">
+                        <option value="india_all">🇮🇳 FULL INDIA NATIONAL OVERVIEW</option>
+                        <option value="kedarnath" selected>⛰️ Kedarnath Basin (Uttarakhand)</option>
+                        <option value="chamoli">⛰️ Chamoli &amp; Joshimath (Uttarakhand)</option>
+                        <option value="wayanad">🌴 Wayanad Hills (Kerala)</option>
+                        <option value="mandi">🏔️ Mandi Valley (Himachal Pradesh)</option>
+                        <option value="silchar">🌊 Silchar &amp; Barak Valley (Assam)</option>
+                    </select>
+                </div>
+
+                <!-- MAP TYPE SELECTOR -->
+                <div class="selector-group">
+                    <label for="map-style-select">MAP TYPE:</label>
+                    <select id="map-style-select" class="ctrl-select scenario-highlight">
+                        <option value="satellite" selected>🛰️ ESRI SATELLITE HYBRID (REAL INDIA)</option>
+                        <option value="osm">🗺️ OPENSTREETMAP INDIA (REAL ROADS)</option>
+                        <option value="dark">⚡ DARK COMMAND CENTER</option>
+                    </select>
+                </div>
+
+                <!-- SCENARIO SELECTOR -->
+                <div class="selector-group">
+                    <label for="scenario-select">SCENARIO:</label>
+                    <select id="scenario-select" class="ctrl-select scenario-highlight">
+                        <option value="NORMAL">01 — NORMAL CONDITIONS</option>
+                        <option value="HEAVY_RAIN">02 — HEAVY RAINFALL</option>
+                        <option value="STORM_INTENSIFYING" selected>03 — RAPIDLY INTENSIFYING STORM</option>
+                        <option value="CLOUDBURST">04 — CLOUDBURST EVENT</option>
+                        <option value="RIVER_RISE">05 — RAPID RIVER RISE</option>
+                        <option value="SENSOR_FAILURE">06 — SENSOR DEGRADATION</option>
+                        <option value="ROAD_FAILURE">07 — ROAD A UNSAFE (REROUTE DEMO)</option>
+                    </select>
+                </div>
+
+                <div class="demo-btn-group">
+                    <button class="btn btn-hero-scenario" id="btn-run-master-scenario">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        RUN FLOOD SCENARIO
+                    </button>
+                    <button class="btn btn-accent btn-sm" id="btn-run-demo-seq">
+                        AUTOPLAY DEMO (9-STEP)
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN LAYOUT WRAPPER -->
+        <div class="main-body">
+            <!-- SIDE NAVIGATION BAR -->
+            <nav class="side-nav">
+                <div class="nav-links">
+                    <button class="nav-item active" data-view="command-center">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                        <span>COMMAND CENTER</span>
+                    </button>
+                    <button class="nav-item" data-view="locations-view">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                        <span>LOCATIONS</span>
+                        <span class="badge badge-alert" id="nav-crit-count">3</span>
+                    </button>
+                    <button class="nav-item" data-view="forecast-view">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+                        <span>FORECAST</span>
+                    </button>
+                    <button class="nav-item" data-view="evacuation-view">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                        <span>EVACUATION</span>
+                    </button>
+                    <button class="nav-item" data-view="incidents-view">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 16 14"></polyline></svg>
+                        <span>INCIDENTS</span>
+                    </button>
+                    <button class="nav-item" id="btn-open-provenance-modal">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                        <span>DATA PROVENANCE</span>
+                    </button>
+                </div>
+
+                <div class="nav-footer">
+                    <button class="nav-item" data-view="system-health-view">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                        <span>SYSTEM HEALTH</span>
+                        <span class="status-dot dot-online" id="side-health-dot"></span>
+                    </button>
+                </div>
+            </nav>
+
+            <!-- VIEW CONTAINER -->
+            <main class="content-area">
+                <!-- VIEW 01: COMMAND CENTER -->
+                <section id="view-command-center" class="app-view active">
+                    <!-- INTELLIGENCE SUMMARY STRIP -->
+                    <div class="intel-strip">
+                        <div class="metric-card metric-critical">
+                            <div class="metric-header">
+                                <span class="metric-title">CRITICAL ZONES</span>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>
+                            </div>
+                            <div class="metric-value-row">
+                                <span class="metric-value" id="strip-critical-zones">03</span>
+                                <span class="metric-sub">zones requiring immediate action</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <span class="metric-title">POPULATION WITHIN IMPACT ZONE</span>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                            </div>
+                            <div class="metric-value-row">
+                                <span class="metric-value" id="strip-people-exposed">8,420</span>
+                                <span class="metric-sub">modeled population exposure</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card metric-high-risk">
+                            <div class="metric-header">
+                                <span class="metric-title" title="FLOOD RISK SCORE: Composite risk index (0.00-1.00)">FLOOD RISK SCORE ⓘ</span>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                            </div>
+                            <div class="metric-value-row">
+                                <span class="metric-value" id="strip-highest-risk">0.81</span>
+                                <span class="badge badge-red" id="strip-risk-label">CRITICAL</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card metric-time">
+                            <div class="metric-header">
+                                <span class="metric-title">ACTIONABLE WARNING WINDOW</span>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            </div>
+                            <div class="metric-value-row">
+                                <span class="metric-value highlight-timer" id="strip-time-critical">18 min</span>
+                                <span class="badge badge-alert" id="strip-window-status">WINDOW INSUFFICIENT</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HERO WORKSPACE CONTAINER (MAP + DRAWER) -->
+                    <div class="hero-workspace">
+                        <!-- HERO MAP AREA -->
+                        <div class="map-wrapper">
+                            <div id="main-map" class="map-container"></div>
+                            
+                            <!-- "RISK IS INCREASING" LIVE MAP CARD OVERLAY -->
+                            <div class="map-overlay-risk-trend" id="map-trend-indicator">
+                                <div class="trend-icon">↗</div>
+                                <div class="trend-content">
+                                    <span class="trend-title">RISK RAPIDLY INCREASING</span>
+                                    <span class="trend-rate" id="map-trend-rate">+28% in last 15 min</span>
+                                </div>
+                            </div>
+
+                            <!-- RISK PROPAGATING DOWNSTREAM ANIMATED BADGE -->
+                            <div class="map-overlay-propagation" id="map-prop-badge">
+                                <span class="prop-dot"></span>
+                                <span>RISK PROPAGATING DOWNSTREAM</span>
+                                <span class="prop-flow-arrow">&darr;&darr;</span>
+                            </div>
+
+                            <!-- MAP LEGEND OVERLAY -->
+                            <div class="map-overlay-topleft">
+                                <div class="map-legend">
+                                    <div class="legend-item"><span class="leg-color leg-low"></span> LOW (0.00-0.39)</div>
+                                    <div class="legend-item"><span class="leg-color leg-mod"></span> MODERATE (0.40-0.59)</div>
+                                    <div class="legend-item"><span class="leg-color leg-high"></span> HIGH (0.60-0.79)</div>
+                                    <div class="legend-item"><span class="leg-color leg-crit"></span> CRITICAL ZONE (0.80-1.00)</div>
+                                </div>
+                            </div>
+
+                            <!-- ENHANCED MAP LAYER TOGGLES -->
+                            <div class="map-overlay-topright">
+                                <div class="map-layer-toggles">
+                                    <button class="layer-btn active" id="toggle-zones-btn">RISK ZONES</button>
+                                    <button class="layer-btn active" id="toggle-pop-btn">POPULATION</button>
+                                    <button class="layer-btn" id="toggle-vuln-btn">VULNERABILITY</button>
+                                    <button class="layer-btn active" id="toggle-roads-btn">ROADS</button>
+                                    <button class="layer-btn active" id="toggle-sensors-btn">SENSORS</button>
+                                    <button class="layer-btn active" id="toggle-shelters-btn">SHELTERS</button>
+                                    <button class="layer-btn active" id="toggle-terrain-btn">TERRAIN</button>
+                                </div>
+                            </div>
+
+                            <!-- FUTURE RISK TIME SLIDER AT BOTTOM OF MAP -->
+                            <div class="map-overlay-timeline">
+                                <div class="timeline-slider-card">
+                                    <div class="slider-header">
+                                        <span class="slider-title">⏱ FUTURE RISK TIME SLIDER</span>
+                                        <span class="slider-val" id="time-slider-val-label">CURRENT STATE (NOW)</span>
+                                    </div>
+                                    <div class="slider-track-container">
+                                        <input type="range" min="0" max="4" step="1" value="0" id="future-time-slider" class="time-range-input">
+                                        <div class="slider-ticks">
+                                            <span class="tick active" data-step="0">NOW</span>
+                                            <span class="tick" data-step="1">+15 MIN</span>
+                                            <span class="tick" data-step="2">+30 MIN</span>
+                                            <span class="tick" data-step="3">+60 MIN</span>
+                                            <span class="tick" data-step="4">+120 MIN</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="map-overlay-bottomleft">
+                                <div class="terrain-info">
+                                    <span class="t-label">DATA MODE:</span>
+                                    <span class="t-val" id="map-region-footer-label">DEMONSTRATION REPLAY • Mandakini Valley, Uttarakhand</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- RIGHT-SIDE INTELLIGENCE DRAWER -->
+                        <aside id="location-drawer" class="location-drawer">
+                            <div class="drawer-header">
+                                <div>
+                                    <span class="drawer-region-tag" id="drawer-location-region">Rudraprayag District, Uttarakhand, India</span>
+                                    <h2 class="drawer-title" id="drawer-location-name">Riverside Colony</h2>
+                                </div>
+                                <button class="btn-close" id="btn-close-drawer">&times;</button>
+                            </div>
+
+                            <div class="drawer-body">
+                                <!-- RISK STATUS BADGE & METRIC -->
+                                <div class="drawer-risk-hero">
+                                    <div class="risk-score-box">
+                                        <span class="risk-num" id="drawer-risk-num">0.81</span>
+                                        <span class="risk-change positive" id="drawer-risk-change">↑ +0.28</span>
+                                    </div>
+                                    <div class="risk-meta">
+                                        <span class="badge badge-red badge-lg" id="drawer-risk-badge">CRITICAL</span>
+                                        <div class="time-crit-box">
+                                            <span class="lbl">WARNING WINDOW:</span>
+                                            <span class="val" id="drawer-time-crit">18 MIN</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- SEPARATED DATA QUALITY VS MODEL CONFIDENCE -->
+                                <div class="confidence-bar-strip">
+                                    <div class="conf-item" title="Model Confidence: Agreement and stability among input signals">
+                                        <span class="lbl">MODEL CONFIDENCE</span>
+                                        <div class="conf-bar"><div class="conf-fill" id="drawer-conf-fill" style="width: 77%;"></div></div>
+                                        <span class="val" id="drawer-conf-val">77% (HIGH)</span>
+                                    </div>
+                                    <div class="conf-item" title="Data Quality: Incoming sensor stream integrity and freshness">
+                                        <span class="lbl">DATA QUALITY</span>
+                                        <div class="conf-bar"><div class="conf-fill" id="drawer-dq-fill" style="width: 91%;"></div></div>
+                                        <span class="val" id="drawer-dq-val">91% (GOOD)</span>
+                                    </div>
+                                </div>
+
+                                <!-- FORMULA BREAKDOWN (PROTOTYPE RISK ENGINE) -->
+                                <div class="section-box">
+                                    <h4 class="section-title">PROTOTYPE RISK ENGINE FORMULA</h4>
+                                    <div class="formula-flex">
+                                        <div class="formula-card">
+                                            <span class="f-lbl">HAZARD (0.45)</span>
+                                            <span class="f-val" id="drawer-hazard">0.73</span>
+                                        </div>
+                                        <span class="f-plus">+</span>
+                                        <div class="formula-card">
+                                            <span class="f-lbl">EXPOSURE (0.35)</span>
+                                            <span class="f-val" id="drawer-exposure">0.82</span>
+                                        </div>
+                                        <span class="f-plus">+</span>
+                                        <div class="formula-card">
+                                            <span class="f-lbl">VULNERABILITY (0.20)</span>
+                                            <span class="f-val" id="drawer-vulnerability">0.61</span>
+                                        </div>
+                                    </div>
+                                    <div class="formula-equals">
+                                        <span>FLOOD RISK SCORE: <strong id="drawer-final-risk-txt">0.81 (CRITICAL)</strong></span>
+                                    </div>
+                                </div>
+
+                                <!-- CURRENT ENVIRONMENTAL CONDITIONS -->
+                                <div class="section-box">
+                                    <h4 class="section-title">ENVIRONMENTAL TELEMETRY SIGNALS</h4>
+                                    <div class="env-grid">
+                                        <div class="env-item">
+                                            <span class="env-lbl">RAIN INTENSITY</span>
+                                            <span class="env-val" id="drawer-env-rain">42 mm/hr</span>
+                                            <div class="env-mini-bar"><div class="env-bar-inner" id="bar-rain" style="width: 84%;"></div></div>
+                                        </div>
+                                        <div class="env-item">
+                                            <span class="env-lbl">RIVER LEVEL</span>
+                                            <span class="env-val" id="drawer-env-river">2.1 m <small>(+0.6m/15m ↑)</small></span>
+                                            <div class="env-mini-bar"><div class="env-bar-inner bar-warn" id="bar-river" style="width: 70%;"></div></div>
+                                        </div>
+                                        <div class="env-item">
+                                            <span class="env-lbl">SLOPE ANGLE</span>
+                                            <span class="env-val" id="drawer-env-slope">28° Steep Runoff</span>
+                                            <div class="env-mini-bar"><div class="env-bar-inner" style="width: 65%;"></div></div>
+                                        </div>
+                                        <div class="env-item">
+                                            <span class="env-lbl">SOIL SATURATION</span>
+                                            <span class="env-val" id="drawer-env-soil">70% Saturated</span>
+                                            <div class="env-mini-bar"><div class="env-bar-inner" id="bar-soil" style="width: 70%;"></div></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- EXPLAINABILITY — TOP CONTRIBUTING SIGNALS -->
+                                <div class="section-box explain-box">
+                                    <h4 class="section-title text-alert">TOP CONTRIBUTING SIGNALS</h4>
+                                    <div class="factor-list" id="drawer-factors">
+                                        <!-- JS Populated -->
+                                    </div>
+                                    <div class="natural-lang-summary" id="drawer-natural-summary">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                                        <span>Risk is increasing primarily because rainfall intensity and river rise rate are accelerating while soil saturation remains high.</span>
+                                    </div>
+                                </div>
+
+                                <!-- WHY THIS ALERT CARD -->
+                                <div class="why-alert-card">
+                                    <h4 class="wa-title">WHY THIS ALERT?</h4>
+                                    <div class="wa-body">
+                                        <div class="wa-row"><span>LOCATION:</span> <strong>Riverside Colony</strong></div>
+                                        <div class="wa-row"><span>PREDICTED RISK:</span> <strong class="text-alert">0.81 (CRITICAL)</strong></div>
+                                        <div class="wa-row"><span>TIME TO CRITICAL:</span> <strong>18 MIN</strong></div>
+                                        <div class="wa-row"><span>EXPOSED POPULATION:</span> <strong>2,400 PEOPLE</strong></div>
+                                        <div class="wa-row"><span>EVACUATION ETA:</span> <strong>18 MIN (MARGINAL)</strong></div>
+                                        <div class="wa-action">RECOMMENDED ACTION: <strong>EVACUATE IMMEDIATELY</strong></div>
+                                    </div>
+                                </div>
+
+                                <!-- DRAWER ACTION BUTTONS -->
+                                <div class="drawer-actions">
+                                    <button class="btn btn-outline" id="btn-drawer-forecast">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline></svg>
+                                        VIEW FORECAST
+                                    </button>
+                                    <button class="btn btn-alert" id="btn-drawer-evac">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                                        EVACUATION COMMAND
+                                    </button>
+                                </div>
+                            </div>
+                        </aside>
+                    </div>
+                </section>
+
+                <!-- VIEW 02: ALL LOCATIONS LIST VIEW -->
+                <section id="view-locations-view" class="app-view">
+                    <div class="view-header">
+                        <div>
+                            <h1 class="view-title">LOCATION INTELLIGENCE REGISTRY</h1>
+                            <p class="view-sub">Real-time risk telemetry across monitored mountain sectors in India.</p>
+                        </div>
+                        <div class="search-filter-row">
+                            <input type="text" class="input-search" id="location-search-input" placeholder="Search village, route or zone...">
+                        </div>
+                    </div>
+
+                    <div class="locations-grid" id="locations-cards-container">
+                        <!-- Populated by JS -->
+                    </div>
+                </section>
+
+                <!-- VIEW 03: FORECAST SCREEN (WITH UNCERTAINTY BANDS) -->
+                <section id="view-forecast-view" class="app-view">
+                    <div class="view-header">
+                        <div>
+                            <span class="view-tag">PREDICTIVE ANALYTICS ENGINE</span>
+                            <h1 class="view-title">HYPERLOCAL RISK FORECAST &amp; UNCERTAINTY BAND</h1>
+                            <p class="view-sub">Target Location: <strong id="forecast-target-name">Riverside Colony</strong> | Model Confidence: <span id="fc-conf-tag">77% (HIGH)</span></p>
+                        </div>
+                        <div class="target-location-selector">
+                            <label>SELECT LOCATION:</label>
+                            <select id="forecast-loc-select" class="ctrl-select">
+                                <!-- JS Populated -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="forecast-workspace">
+                        <!-- MAIN GRAPH PANEL -->
+                        <div class="panel forecast-chart-panel">
+                            <div class="panel-header">
+                                <h3>120-MINUTE RISK TRAJECTORY &amp; UNCERTAINTY RANGE</h3>
+                                <div class="chart-legend">
+                                    <span class="leg-line leg-current">● Current Risk (0.81)</span>
+                                    <span class="leg-line leg-predicted">--- Expected Path</span>
+                                    <span class="leg-line leg-range">░ Expected Range (0.84 - 0.96)</span>
+                                    <span class="leg-line leg-thresh">― Critical Threshold (0.80)</span>
+                                </div>
+                            </div>
+                            <div class="chart-canvas-container">
+                                <canvas id="forecast-canvas" width="800" height="340"></canvas>
+                            </div>
+                            <div class="chart-timeline-labels">
+                                <span>NOW (0.81 ±0.03)</span>
+                                <span>+15 MIN (0.84 ±0.04)</span>
+                                <span>+30 MIN (0.90 ±0.05)</span>
+                                <span>+60 MIN (0.95 ±0.06)</span>
+                                <span>+120 MIN (0.97 ±0.06)</span>
+                            </div>
+                        </div>
+
+                        <!-- SIDE PANEL: DANGER WINDOW & SCENARIO ANALYSIS -->
+                        <div class="forecast-side-panels">
+                            <!-- DANGER WINDOW CARD -->
+                            <div class="panel danger-window-card">
+                                <div class="dw-header">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                    <h3>ACTIONABLE WARNING WINDOW</h3>
+                                </div>
+                                <div class="dw-body">
+                                    <span class="dw-sub">TIME TO CRITICAL THRESHOLD</span>
+                                    <div class="dw-big-time" id="dw-time-display">18 MIN</div>
+                                    <div class="dw-status-alert">
+                                        <span>Conditions deteriorating rapidly. Evacuation window closing.</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- COUNTERFACTUAL / SCENARIO ANALYSIS -->
+                            <div class="panel counterfactual-card">
+                                <h3>WHAT WOULD LOWER THE RISK?</h3>
+                                <p class="cf-sub">Model-Derived Sensitivity Counterfactuals</p>
+
+                                <div class="cf-scenarios">
+                                    <div class="cf-item">
+                                        <span class="cf-bullet">Option A</span>
+                                        <div class="cf-content">
+                                            <strong>River level drop &lt; 1.8m</strong>
+                                            <span>Requires upstream retention gate trigger.</span>
+                                        </div>
+                                    </div>
+                                    <div class="cf-or">OR</div>
+                                    <div class="cf-item">
+                                        <span class="cf-bullet">Option B</span>
+                                        <div class="cf-content">
+                                            <strong>Rainfall intensity &lt; 30 mm/hr</strong>
+                                            <span>Natural storm system dissipation.</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="cf-result-box">
+                                    <span>POTENTIAL RESULT: Risk could fall below <strong>CRITICAL (0.80)</strong> to <strong>0.58 MODERATE</strong>.</span>
+                                </div>
+
+                                <div class="cf-disclaimer">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="12" x2="12" y2="12"></line></svg>
+                                    <span>PROTOTYPE SCENARIO MODEL • NOT A GUARANTEE</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 04 & 05: EVACUATION & SAFE ROUTING COMMAND -->
+                <section id="view-evacuation-view" class="app-view">
+                    <div class="view-header">
+                        <div>
+                            <span class="view-tag">DYNAMIC DECISION ENGINE</span>
+                            <h1 class="view-title">EVACUATION COMMAND &amp; DYNAMIC ROUTING</h1>
+                            <p class="view-sub" id="evac-sub-count">3 locations require immediate operational attention in Mandakini Sector</p>
+                        </div>
+                        <div class="evac-header-actions">
+                            <button class="btn btn-alert" id="btn-trigger-road-failure">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>
+                                SIMULATE ROAD FAILURE (REROUTE DEMO)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="evac-workspace">
+                        <!-- LEFT COLUMN: PRIORITY RANKING LIST -->
+                        <div class="evac-priority-col">
+                            <h3 class="panel-section-title">PRIORITY EVACUATION RANKING</h3>
+                            <div class="priority-list" id="evac-priority-container">
+                                <!-- Populated dynamically by JS -->
+                            </div>
+                        </div>
+
+                        <!-- RIGHT COLUMN: ROUTE MAP & DYNAMIC REROUTING INTERACTION -->
+                        <div class="evac-routing-col">
+                            <div class="panel routing-panel">
+                                <div class="route-panel-header">
+                                    <div>
+                                        <span class="route-tag">SAFE ROUTE SELECTION</span>
+                                        <h3 id="active-route-title">Riverside Colony &rarr; Emergency Relief Camp Alpha</h3>
+                                    </div>
+                                    <div class="route-status-badge" id="route-status-badge">
+                                        <span class="status-dot dot-online"></span>
+                                        <span id="route-status-txt">ROUTE OPTIMAL</span>
+                                    </div>
+                                </div>
+
+                                <!-- ROUTE METRICS STRIP -->
+                                <div class="route-metrics-strip">
+                                    <div class="rm-card">
+                                        <span class="rm-lbl">ETA</span>
+                                        <span class="rm-val" id="rm-eta">18 min</span>
+                                    </div>
+                                    <div class="rm-card">
+                                        <span class="rm-lbl">CURRENT ROUTE RISK</span>
+                                        <span class="rm-val badge badge-green" id="rm-curr-risk">0.22 LOW</span>
+                                    </div>
+                                    <div class="rm-card">
+                                        <span class="rm-lbl">PREDICTED ROUTE RISK</span>
+                                        <span class="rm-val badge badge-green" id="rm-pred-risk">0.34 LOW</span>
+                                    </div>
+                                    <div class="rm-card">
+                                        <span class="rm-lbl">DISTANCE</span>
+                                        <span class="rm-val" id="rm-dist">4.5 km</span>
+                                    </div>
+                                </div>
+
+                                <!-- DYNAMIC REROUTE ALERT BANNER -->
+                                <div id="reroute-alert-banner" class="reroute-banner hidden">
+                                    <div class="rb-icon">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                                    </div>
+                                    <div class="rb-content">
+                                        <h4 class="rb-title">⚠ AUTOMATIC DYNAMIC REROUTE TRIGGERED</h4>
+                                        <p class="rb-desc" id="reroute-reason-text">NH-107 Highway exceeded critical flood-risk threshold (0.86). Rerouted traffic via Gaurikund High Ridge Bypass → Relief Camp Alpha.</p>
+                                    </div>
+                                    <div class="rb-meta">
+                                        <span class="badge badge-accent">RECALCULATED NOW</span>
+                                    </div>
+                                </div>
+
+                                <!-- ROUTING MAP DISPLAY -->
+                                <div class="routing-map-wrapper">
+                                    <div id="routing-map" class="map-container"></div>
+                                </div>
+
+                                <!-- EXPLANATION: WHY THIS ROUTE? -->
+                                <div class="route-explanation-box">
+                                    <h4>WHY THIS ROUTE?</h4>
+                                    <p id="route-explanation-text">
+                                        NH-107 Highway is currently shorter, but predicted flood risk is expected to reach 0.87 within 20 minutes due to Mandakini surge. Gaurikund Bypass remains below the critical threshold during the estimated evacuation window.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 06: INCIDENTS SCREEN -->
+                <section id="view-incidents-view" class="app-view">
+                    <div class="view-header">
+                        <div>
+                            <span class="view-tag">AUDIT &amp; EVENT LOG</span>
+                            <h1 class="view-title">LIVE INCIDENT &amp; ALERT TIMELINE</h1>
+                            <p class="view-sub">Chronological event stream detailing model inferences, environmental threshold breaches, and routing alerts.</p>
+                        </div>
+                        <button class="btn btn-outline btn-sm" id="btn-clear-incidents">CLEAR AUDIT LOG</button>
+                    </div>
+
+                    <div class="panel incident-panel">
+                        <div class="timeline-container" id="incidents-timeline-list">
+                            <!-- Populated dynamically by JS -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 07: SYSTEM HEALTH & MODEL VALIDATION SCREEN -->
+                <section id="view-system-health-view" class="app-view">
+                    <div class="view-header">
+                        <div>
+                            <span class="view-tag">INFRASTRUCTURE TELEMETRY &amp; TRANSPARENCY</span>
+                            <h1 class="view-title">SYSTEM HEALTH &amp; MODEL VALIDATION</h1>
+                            <p class="view-sub">Status of IoT telemetry gauges, fallback engines, and retrospective validation framework.</p>
+                        </div>
+                        <div class="sensor-sim-actions">
+                            <button class="btn btn-outline" id="btn-toggle-sensor8">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+                                SIMULATE SENSOR FAILURE
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- DEGRADATION DEMO ALERT BANNER -->
+                    <div id="sensor-degraded-banner" class="degraded-banner hidden">
+                        <div class="db-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>
+                        </div>
+                        <div class="db-content">
+                            <h4>⚠ SENSOR #08 DEGRADED — DATA FUSION FALLBACK ACTIVE</h4>
+                            <p>Data Quality dropped from 91% &rarr; 64%. Model confidence reduced from 77% &rarr; 54%. <strong>FALLBACK REASON:</strong> Radar input unavailable. Risk estimate continues using rainfall, river gauge, terrain and historical susceptibility signals.</p>
+                        </div>
+                    </div>
+
+                    <div class="health-grid">
+                        <!-- HEALTH STATUS LIST -->
+                        <div class="panel health-status-panel">
+                            <h3>CORE SUBSYSTEM STATUS</h3>
+                            <div class="subsystem-list">
+                                <div class="subsystem-item">
+                                    <span class="sub-name">● PROTOTYPE FLOOD RISK ENGINE</span>
+                                    <span class="badge badge-green">OPERATIONAL (14ms)</span>
+                                </div>
+                                <div class="subsystem-item">
+                                    <span class="sub-name">● GEOSPATIAL DATA PIPELINE</span>
+                                    <span class="badge badge-green">ONLINE</span>
+                                </div>
+                                <div class="subsystem-item">
+                                    <span class="sub-name">● RAINFALL TELEMETRY (11/12)</span>
+                                    <span class="badge badge-green" id="health-rain-badge">11/12 ONLINE</span>
+                                </div>
+                                <div class="subsystem-item">
+                                    <span class="sub-name">● RIVER GAUGES (5/5)</span>
+                                    <span class="badge badge-green">5/5 ONLINE</span>
+                                </div>
+                                <div class="subsystem-item" id="sensor-08-row">
+                                    <span class="sub-name">● SENSOR #08 (UPSTREAM RADAR)</span>
+                                    <span class="badge badge-green" id="health-s8-badge">ONLINE</span>
+                                </div>
+                                <div class="subsystem-item">
+                                    <span class="sub-name">● DYNAMIC ROUTING ENGINE</span>
+                                    <span class="badge badge-green">ONLINE</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- DATA INTEGRITY METRICS & VALIDATION SCREEN -->
+                        <div class="panel health-metrics-panel">
+                            <h3>MODEL VALIDATION &amp; DATA SEPARATION</h3>
+                            <div class="h-metric-block">
+                                <span class="hm-lbl">DATA QUALITY SCORE (INCOMING SIGNAL INTEGRITY)</span>
+                                <span class="hm-val text-accent" id="hm-data-quality">91% (GOOD)</span>
+                                <div class="conf-bar"><div class="conf-fill" id="hm-dq-bar" style="width: 91%;"></div></div>
+                            </div>
+                            <div class="h-metric-block">
+                                <span class="hm-lbl">MODEL INFERENCE CONFIDENCE (SIGNAL AGREEMENT)</span>
+                                <span class="hm-val text-accent" id="hm-confidence">77% (HIGH)</span>
+                                <div class="conf-bar"><div class="conf-fill" id="hm-conf-bar" style="width: 77%;"></div></div>
+                            </div>
+                            <div class="h-metric-block">
+                                <span class="hm-lbl">VALIDATION METRICS</span>
+                                <div class="val-status-badge">
+                                    <span>VALIDATION DATASET NOT YET CONNECTED</span>
+                                </div>
+                                <p class="val-desc">Historical event datasets (2013 Kedarnath, 2024 Wayanad) will be utilized for retrospective validation of critical-event recall, lead time, and route recommendation accuracy.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+
+        <!-- MODAL: DATA PROVENANCE & ARCHITECTURE (CLEAN POPUP) -->
+        <div id="provenance-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h3>FLOODX DATA PROVENANCE &amp; ARCHITECTURE</h3>
+                        <p style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">Trace every signal from source &rarr; processing &rarr; decision.</p>
+                    </div>
+                    <button class="btn-close" id="btn-close-provenance">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="prov-section">
+                        <h4 style="font-family: var(--font-mono); font-size: 0.8rem; color: #38bdf8; margin-bottom: 8px;">1. DATA SOURCES &amp; REPLAY STATUS</h4>
+                        <table class="prov-table">
+                            <thead>
+                                <tr>
+                                    <th>SIGNAL / METRIC</th>
+                                    <th>AUTHORITATIVE SOURCE</th>
+                                    <th>PROTOTYPE STATUS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Rainfall Intensity &amp; AWS</td>
+                                    <td>India Meteorological Dept (IMD)</td>
+                                    <td><span class="badge badge-yellow">SIMULATED REPLAY</span></td>
+                                </tr>
+                                <tr>
+                                    <td>River Stage &amp; Discharge</td>
+                                    <td>Central Water Commission (CWC)</td>
+                                    <td><span class="badge badge-yellow">SIMULATED REPLAY</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Satellite Inundation</td>
+                                    <td>ISRO / NRSC Bhuvan</td>
+                                    <td><span class="badge badge-accent">HISTORICAL LAYER</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Terrain Elevation (DEM)</td>
+                                    <td>SRTM 30m Digital Elevation</td>
+                                    <td><span class="badge badge-green">STATIC GIS</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Population Exposure</td>
+                                    <td>WorldPop / Census India</td>
+                                    <td><span class="badge badge-accent">MODELED EXPOSURE</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="prov-section">
+                        <h4 style="font-family: var(--font-mono); font-size: 0.8rem; color: #38bdf8; margin-bottom: 8px;">2. WHAT FLOODX ADDS (ACTION INTELLIGENCE LAYER)</h4>
+                        <div class="architecture-flow">
+                            <div class="arch-box">
+                                <strong style="color: #94a3b8;">EXISTING SIGNALS</strong>
+                                <span>Weather (IMD) • River (CWC) • Satellite (ISRO)</span>
+                            </div>
+                            <div class="arch-arrow">&rarr;</div>
+                            <div class="arch-box arch-highlight">
+                                <strong style="color: #38bdf8;">FLOODX ACTION INTELLIGENCE</strong>
+                                <span>Hyperlocal Risk • Explainability • Warning Window</span>
+                            </div>
+                            <div class="arch-arrow">&rarr;</div>
+                            <div class="arch-box">
+                                <strong style="color: #ef4444;">DECISION &amp; ACTION</strong>
+                                <span>Priority Ranking • Evacuation • Dynamic Rerouting</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FOOTER BRAND BAR -->
+        <footer class="app-footer">
+            <div class="footer-brand">
+                <strong>FLOODX</strong> — Predict danger. Prioritize people. Adapt evacuation.
+            </div>
+            <div class="footer-meta">
+                <span>INDIA GEOSPATIAL INTELLIGENCE PLATFORM</span>
+                <span>● DATA MODE: DEMONSTRATION / REPLAY</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Application Scripts -->
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
