@@ -128,8 +128,9 @@ SENSOR_STALE_REPEAT_LIMIT: int = 6
 # Confidence / uncertainty weights
 # ---------------------------------------------------------------------------
 CONFIDENCE_WEIGHTS: dict[str, float] = {
-    "data_quality":         0.30,
-    "feature_completeness": 0.25,
+    "data_quality":         0.20,
+    "sensor_reliability":   0.15,
+    "feature_completeness": 0.20,
     "model_uncertainty":    0.25,
     "signal_agreement":     0.20,
 }

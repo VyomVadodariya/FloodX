@@ -25,6 +25,7 @@ from model.feature_engineering import (
     normalize_features,
 )
 from model.uncertainty import estimate_confidence
+from model.explainability import explain_prediction
 
 # Lazy-loaded ML model
 _ml_model = None
@@ -39,6 +40,7 @@ def predict_risk(
     upstream_data: dict[str, Any] | None = None,
     population_data: dict[str, Any] | None = None,
     model_mode: str | None = None,
+    previous_prediction: dict[str, Any] | None = None,
 ) -> dict:
     """Produce a full risk-intelligence prediction for a single location.
 
@@ -131,6 +133,7 @@ def predict_risk(
     result["risk_label"] = label
     result["confidence"] = conf["confidence"]
     result["data_quality_score"] = conf["data_quality_score"]
+    result["sensor_reliability_score"] = conf.get("sensor_reliability_score", 1.0)
     result["sensor_status"] = quality_report["sensor_status"]
 
     # Explanation
@@ -144,6 +147,12 @@ def predict_risk(
 
     # Model metadata
     result["model_mode"] = "ml" if mode == "ml" and tree_preds is not None else "baseline"
+
+    # Risk change explanation
+    if previous_prediction:
+        exp_report = explain_prediction(result, previous_prediction)
+        result["risk_change"] = exp_report.get("change")
+        result["change_explanation"] = exp_report.get("change_explanation")
 
     return result
 

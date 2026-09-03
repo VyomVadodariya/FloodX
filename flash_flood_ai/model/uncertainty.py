@@ -47,11 +47,17 @@ def estimate_confidence(
         ``signal_agreement``    – [0, 1]
         ``components``          – dict of individual scores
     """
-    # -- 1. Data quality ---------------------------------------------------
+    # -- 1. Data quality & Sensor Reliability ------------------------------
     if data_quality_report:
         dq = data_quality_report.get("data_quality_score", 1.0)
+        sr_dict = data_quality_report.get("sensor_reliability", {})
+        if sr_dict:
+            sr = sum(s.get("reliability_score", 1.0) for s in sr_dict.values()) / len(sr_dict)
+        else:
+            sr = 1.0
     else:
         dq = 1.0
+        sr = 1.0
 
     # -- 2. Feature completeness -------------------------------------------
     fc = _feature_completeness(features)
@@ -67,6 +73,7 @@ def estimate_confidence(
     # model_uncertainty is inverted: high uncertainty → low confidence
     raw = (
         w["data_quality"] * dq
+        + w["sensor_reliability"] * sr
         + w["feature_completeness"] * fc
         + w["model_uncertainty"] * (1.0 - mu)
         + w["signal_agreement"] * sa
@@ -76,11 +83,13 @@ def estimate_confidence(
     return {
         "confidence": round(confidence, 4),
         "data_quality_score": round(dq, 4),
+        "sensor_reliability_score": round(sr, 4),
         "feature_completeness": round(fc, 4),
         "model_uncertainty": round(mu, 4),
         "signal_agreement": round(sa, 4),
         "components": {
             "data_quality": round(dq, 4),
+            "sensor_reliability": round(sr, 4),
             "feature_completeness": round(fc, 4),
             "model_uncertainty": round(mu, 4),
             "signal_agreement": round(sa, 4),

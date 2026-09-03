@@ -175,10 +175,7 @@ def generate_counterfactual(
         "target_label": target_label,
         "target_threshold": target_threshold,
         "suggestions": suggestions[:3],
-        "disclaimer": (
-            "These are model-derived scenarios, not guarantees. "
-            "Actual conditions may differ."
-        ),
+        "disclaimer": "MODEL-DERIVED SCENARIO NOT A GUARANTEE. Actual conditions may differ.",
     }
 
 
@@ -189,31 +186,6 @@ def _compute_change(current: dict, previous: dict) -> dict:
     cur_risk = current.get("risk_score", 0)
     prev_risk = previous.get("risk_score", 0)
     delta = cur_risk - prev_risk
-
-    return {
-        "previous_risk": round(prev_risk, 4),
-        "current_risk": round(cur_risk, 4),
-        "previous_label": previous.get("risk_label", "UNKNOWN"),
-        "current_label": current.get("risk_label", "UNKNOWN"),
-        "delta": round(delta, 4),
-        "direction": "increased" if delta > 0.01 else ("decreased" if delta < -0.01 else "stable"),
-    }
-
-
-def _change_explanation(
-    change: dict,
-    current: dict,
-    previous: dict,
-) -> str:
-    """Generate human-readable change explanation."""
-    direction = change["direction"]
-    delta = abs(change["delta"])
-
-    if direction == "stable":
-        return (
-            f"Risk remained stable at {change['current_label']} "
-            f"({change['current_risk']:.2f})."
-        )
 
     # Identify which factors changed most
     cur_factors = {f["factor"]: f for f in current.get("top_factors_detail", [])}
@@ -229,29 +201,57 @@ def _change_explanation(
 
     changes.sort(key=lambda x: abs(x[1]), reverse=True)
 
-    magnitude = "sharply" if delta > 0.2 else ("moderately" if delta > 0.1 else "slightly")
-
-    reason_parts = []
-    for factor, f_delta in changes[:2]:
+    primary_drivers = []
+    for factor, f_delta in changes[:3]:
         phrase = _FACTOR_DESCRIPTIONS.get(
             config.HAZARD_FEATURE_MAP.get(factor, ""),
             factor,
         )
         dir_word = "increased" if f_delta > 0 else "decreased"
-        reason_parts.append(f"{phrase} {dir_word}")
+        primary_drivers.append(f"{phrase} {dir_word}")
+
+    return {
+        "previous_score": round(prev_risk, 4),
+        "current_score": round(cur_risk, 4),
+        "previous_label": previous.get("risk_label", "UNKNOWN"),
+        "current_label": current.get("risk_label", "UNKNOWN"),
+        "change": round(delta, 4),
+        "direction": "increased" if delta > 0.01 else ("decreased" if delta < -0.01 else "stable"),
+        "primary_drivers": primary_drivers,
+    }
+
+
+def _change_explanation(
+    change: dict,
+    current: dict,
+    previous: dict,
+) -> str:
+    """Generate human-readable change explanation."""
+    direction = change["direction"]
+    delta = abs(change["change"])
+
+    if direction == "stable":
+        return (
+            f"Risk remained stable at {change['current_label']} "
+            f"({change['current_score']:.2f})."
+        )
+
+    magnitude = "sharply" if delta > 0.2 else ("moderately" if delta > 0.1 else "slightly")
+
+    reason_parts = change.get("primary_drivers", [])[:2]
 
     if reason_parts:
         reasons = " and ".join(reason_parts)
         return (
             f"Risk {direction} {magnitude} from {change['previous_label']} "
-            f"({change['previous_risk']:.2f}) to {change['current_label']} "
-            f"({change['current_risk']:.2f}) because {reasons}."
+            f"({change['previous_score']:.2f}) to {change['current_label']} "
+            f"({change['current_score']:.2f}) because {reasons}."
         )
 
     return (
         f"Risk {direction} {magnitude} from {change['previous_label']} "
-        f"({change['previous_risk']:.2f}) to {change['current_label']} "
-        f"({change['current_risk']:.2f})."
+        f"({change['previous_score']:.2f}) to {change['current_label']} "
+        f"({change['current_score']:.2f})."
     )
 
 

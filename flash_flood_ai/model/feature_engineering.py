@@ -86,11 +86,15 @@ def compute_features(
         features["upstream_rainfall_accumulation"] = _sf(
             upstream_data.get("upstream_rainfall_accumulation")
         )
+        features["upstream_distance_km"] = _sf(upstream_data.get("upstream_distance_km"))
+        features["estimated_travel_time_min"] = _sf(upstream_data.get("estimated_travel_time_min"))
     else:
         features["upstream_rainfall"]        = None
         features["upstream_river_level"]     = None
         features["upstream_river_rise_rate"] = None
         features["upstream_rainfall_accumulation"] = None
+        features["upstream_distance_km"] = None
+        features["estimated_travel_time_min"] = None
 
     return features
 
@@ -198,5 +202,6 @@ def _empty_features() -> dict[str, float | None]:
         "soil_saturation_change",
         "upstream_rainfall", "upstream_river_level",
         "upstream_river_rise_rate", "upstream_rainfall_accumulation",
+        "upstream_distance_km", "estimated_travel_time_min",
     ]
     return {k: None for k in keys}

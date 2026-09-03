@@ -99,12 +99,47 @@ class AnomalyDetector:
                 if cur is not None and all(v == cur for v in vals if v is not None):
                     anomalies.append(f"{field}_stale_reading")
 
-        # -- 5. Data-quality score ------------------------------------------
+        # -- 5. Sensor Reliability (Req 6) ----------------------------------
+        sensor_reliability: dict[str, Any] = {}
+        primary_sensors = ["rainfall_mm_hr", "river_level_m", "soil_saturation"]
+        
+        for field in primary_sensors:
+            sensor_id = f"{point.get('id', 'unknown')}_{field}"
+            if not history:
+                sensor_reliability[field] = {
+                    "sensor_id": sensor_id,
+                    "sensor_type": field,
+                    "reliability_score": 1.0 if field not in missing_fields else 0.0,
+                    "missing_rate": 1.0 if field in missing_fields else 0.0,
+                    "anomaly_rate": 0.0 if not any(a.startswith(field) for a in anomalies) else 1.0,
+                }
+            else:
+                total_obs = len(history) + 1
+                missing_count = 1 if field in missing_fields else 0
+                anomaly_count = sum(1 for a in anomalies if a.startswith(field))
+                
+                for h in history:
+                    if _safe_float(h.get(field)) is None:
+                        missing_count += 1
+                
+                missing_rate = missing_count / total_obs
+                # Simple penalty: missing drops reliability 1:1, current anomalies penalize heavily
+                rel_score = max(0.0, 1.0 - missing_rate - (anomaly_count * 0.3))
+                
+                sensor_reliability[field] = {
+                    "sensor_id": sensor_id,
+                    "sensor_type": field,
+                    "reliability_score": round(rel_score, 4),
+                    "missing_rate": round(missing_rate, 4),
+                    "anomaly_rate": round(anomaly_count / total_obs, 4),
+                }
+
+        # -- 6. Data-quality score ------------------------------------------
         total_checks = max(len(SENSOR_VALID_RANGES) + len(SENSOR_MAX_JUMP), 1)
         penalty = len(anomalies)
         quality = max(0.0, 1.0 - penalty / total_checks)
 
-        # -- 6. Sensor status -----------------------------------------------
+        # -- 7. Sensor status -----------------------------------------------
         if quality >= 0.85:
             status = "OK"
         elif quality >= 0.50:
@@ -118,6 +153,7 @@ class AnomalyDetector:
             "data_quality_score": round(quality, 4),
             "missing_fields": missing_fields,
             "clamped_fields": clamped_fields,
+            "sensor_reliability": sensor_reliability,
         }
 
 
