@@ -479,7 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 08. TIME SLIDER CONTROLLER
-    function updateTimeSlider(stepIdx) {
+    async function updateTimeSlider(stepIdx) {
         state.currentTimeStepIdx = stepIdx;
         const stepNames = ['CURRENT STATE (NOW)', '+15 MIN FORECAST', '+30 MIN FORECAST', '+60 MIN FORECAST', '+120 MIN FORECAST'];
         document.getElementById('time-slider-val-label').textContent = stepNames[stepIdx];
@@ -491,6 +491,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 t.classList.remove('active');
             }
         });
+
+        // --- FETCH REAL PREDICTIONS FROM AI BACKEND ---
+        try {
+            const promises = window.FLOODX_DATA.locations.map(async (loc) => {
+                const stepData = loc.timesteps[stepIdx] || loc.timesteps[0];
+                try {
+                    const res = await fetch(`/api/predict/${loc.id}?rain_override=${stepData.rain}`);
+                    if (res.ok) {
+                        stepData.apiData = await res.json();
+                    }
+                } catch(e) {
+                    console.error("Backend unreachable for " + loc.id);
+                }
+            });
+            await Promise.all(promises);
+        } catch (err) {
+            console.error(err);
+        }
 
         renderMainMapElements();
         renderAllViews();
@@ -510,13 +528,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const exposureVal = stepData.exposure;
         const vulnVal = stepData.vuln;
 
-        const computedRisk = computeRiskIndex(hazardVal, exposureVal, vulnVal);
-        const actionState = getActionState(computedRisk);
+        // Use AI Backend Data if available, fallback to local math
+        const computedRisk = stepData.apiData ? stepData.apiData.risk_score : computeRiskIndex(hazardVal, exposureVal, vulnVal);
+        const actionState = stepData.apiData ? { label: stepData.apiData.risk_label, badgeClass: getActionState(computedRisk).badgeClass, color: getActionState(computedRisk).color } : getActionState(computedRisk);
 
         document.getElementById('drawer-location-name').textContent = loc.name;
         document.getElementById('drawer-location-region').textContent = loc.region;
         document.getElementById('drawer-risk-num').textContent = computedRisk.toFixed(2);
-        document.getElementById('drawer-risk-change').textContent = loc.risk_change;
+        document.getElementById('drawer-risk-change').textContent = stepData.apiData && stepData.apiData.risk_change ? stepData.apiData.risk_change : loc.risk_change;
         
         const badgeElem = document.getElementById('drawer-risk-badge');
         badgeElem.textContent = actionState.label;
@@ -528,9 +547,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('drawer-time-crit').textContent = `${warningWindow} MIN`;
 
-        // DYNAMIC SENSOR FAILURE CONFIDENCE DROP (72% DQ / 63% CONFIDENCE)
-        const confVal = state.sensor8Degraded ? 63 : loc.confidence;
-        const dqVal = state.sensor8Degraded ? 72 : loc.data_quality_score;
+        // DYNAMIC SENSOR FAILURE CONFIDENCE DROP 
+        let confVal = state.sensor8Degraded ? 63 : loc.confidence;
+        let dqVal = state.sensor8Degraded ? 72 : loc.data_quality_score;
+        if (stepData.apiData) {
+            confVal = Math.round(stepData.apiData.confidence * 100);
+            dqVal = Math.round(stepData.apiData.data_quality_score * 100);
+        }
 
         document.getElementById('drawer-conf-fill').style.width = `${confVal}%`;
         document.getElementById('drawer-conf-val').textContent = `${confVal}% (${confVal > 70 ? 'HIGH' : 'REDUCED'})`;
@@ -538,33 +561,50 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('drawer-dq-val').textContent = `${dqVal}% (${dqVal > 80 ? 'GOOD' : 'NOISY'})`;
 
         // FORMULA WEIGHT CARDS
-        document.getElementById('drawer-hazard').innerHTML = `${hazardVal.toFixed(2)}<br><small style="color:#64748b;">WT 45%</small>`;
-        document.getElementById('drawer-exposure').innerHTML = `${exposureVal.toFixed(2)}<br><small style="color:#64748b;">WT 35%</small>`;
-        document.getElementById('drawer-vulnerability').innerHTML = `${vulnVal.toFixed(2)}<br><small style="color:#64748b;">WT 20%</small>`;
+        const hazDisplay = stepData.apiData ? stepData.apiData.hazard_score.toFixed(2) : hazardVal.toFixed(2);
+        const expDisplay = stepData.apiData ? stepData.apiData.exposure_score.toFixed(2) : exposureVal.toFixed(2);
+        const vulnDisplay = stepData.apiData ? stepData.apiData.vulnerability_score.toFixed(2) : vulnVal.toFixed(2);
+
+        document.getElementById('drawer-hazard').innerHTML = `${hazDisplay}<br><small style="color:#64748b;">HAZARD</small>`;
+        document.getElementById('drawer-exposure').innerHTML = `${expDisplay}<br><small style="color:#64748b;">EXPOSURE</small>`;
+        document.getElementById('drawer-vulnerability').innerHTML = `${vulnDisplay}<br><small style="color:#64748b;">VULN</small>`;
         document.getElementById('drawer-final-risk-txt').textContent = `${computedRisk.toFixed(2)} (${actionState.label})`;
 
-        document.getElementById('drawer-env-rain').textContent = `${stepData.rain} mm/hr`;
-        document.getElementById('drawer-env-river').innerHTML = `${stepData.river} m <small>(${loc.river_rise_rate} ↑)</small>`;
-        document.getElementById('drawer-env-slope').textContent = `${loc.slope_deg}° Steep Runoff`;
-        document.getElementById('drawer-env-soil').textContent = `${loc.soil_saturation}% Saturated`;
+        document.getElementById('drawer-env-rain').textContent = `${stepData.apiData ? stepData.apiData.rainfall_mm_hr : stepData.rain} mm/hr`;
+        document.getElementById('drawer-env-river').innerHTML = `${stepData.apiData ? stepData.apiData.river_level_m : stepData.river} m <small>(${loc.river_rise_rate} ↑)</small>`;
+        document.getElementById('drawer-env-slope').textContent = `${stepData.apiData ? stepData.apiData.slope_deg : loc.slope_deg}° Steep Runoff`;
+        document.getElementById('drawer-env-soil').textContent = `${stepData.apiData ? stepData.apiData.soil_saturation * 100 : loc.soil_saturation}% Saturated`;
 
-        document.getElementById('bar-rain').style.width = `${Math.min(100, stepData.rain * 1.5)}%`;
-        document.getElementById('bar-river').style.width = `${Math.min(100, stepData.river * 30)}%`;
-        document.getElementById('bar-soil').style.width = `${loc.soil_saturation}%`;
+        document.getElementById('bar-rain').style.width = `${Math.min(100, (stepData.apiData ? stepData.apiData.rainfall_mm_hr : stepData.rain) * 1.5)}%`;
+        document.getElementById('bar-river').style.width = `${Math.min(100, (stepData.apiData ? stepData.apiData.river_level_m : stepData.river) * 30)}%`;
+        document.getElementById('bar-soil').style.width = `${stepData.apiData ? stepData.apiData.soil_saturation * 100 : loc.soil_saturation}%`;
 
         const factorsContainer = document.getElementById('drawer-factors');
-        factorsContainer.innerHTML = loc.top_factors.map(f => `
-            <div class="factor-item" style="margin-bottom: 6px;">
-                <div class="factor-name" style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:700;">
-                    <span>${f.name}</span>
-                    <span class="text-accent">${f.weight}</span>
+        if (stepData.apiData && stepData.apiData.top_factors_detail) {
+            factorsContainer.innerHTML = stepData.apiData.top_factors_detail.map(f => `
+                <div class="factor-item" style="margin-bottom: 6px;">
+                    <div class="factor-name" style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:700;">
+                        <span>${f.factor.toUpperCase()}</span>
+                        <span class="text-accent">${(f.weight*100).toFixed(0)}%</span>
+                    </div>
+                    <div class="conf-bar" style="height:4px; margin: 2px 0 4px 0;"><div class="conf-fill" style="width: ${(f.weight*100).toFixed(0)}%; background: #38bdf8;"></div></div>
+                    <div class="factor-desc" style="font-size:0.65rem; color:#94a3b8;">Contribution: ${f.contribution.toFixed(4)}</div>
                 </div>
-                <div class="conf-bar" style="height:4px; margin: 2px 0 4px 0;"><div class="conf-fill" style="width: ${f.weight}; background: #38bdf8;"></div></div>
-                <div class="factor-desc" style="font-size:0.65rem; color:#94a3b8;">${f.desc}</div>
-            </div>
-        `).join('');
+            `).join('');
+        } else {
+            factorsContainer.innerHTML = loc.top_factors.map(f => `
+                <div class="factor-item" style="margin-bottom: 6px;">
+                    <div class="factor-name" style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:700;">
+                        <span>${f.name}</span>
+                        <span class="text-accent">${f.weight}</span>
+                    </div>
+                    <div class="conf-bar" style="height:4px; margin: 2px 0 4px 0;"><div class="conf-fill" style="width: ${f.weight}; background: #38bdf8;"></div></div>
+                    <div class="factor-desc" style="font-size:0.65rem; color:#94a3b8;">${f.desc}</div>
+                </div>
+            `).join('');
+        }
 
-        document.getElementById('drawer-natural-summary').querySelector('span').textContent = loc.explanation;
+        document.getElementById('drawer-natural-summary').querySelector('span').textContent = stepData.apiData ? stepData.apiData.explanation : loc.explanation;
 
         // WHY THIS ALERT & ACTION GAP BLOCK
         const actionGapStatus = actionGap >= 0 ? '✓ ACTION WINDOW AVAILABLE' : '⚠ ACTION WINDOW INSUFFICIENT';
@@ -825,7 +865,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderRoutingMap();
     }
 
-    function renderRoutingMap() {
+    async function renderRoutingMap() {
         if (!state.routingMap) return;
 
         Object.values(state.mapRoadPolys).forEach(r => state.routingMap.removeLayer(r));
@@ -840,6 +880,57 @@ document.addEventListener('DOMContentLoaded', () => {
         originMarker.bindTooltip('ORIGIN: Riverside Colony', { permanent: true, direction: 'left' });
         shelterMarker.bindTooltip('DESTINATION: Emergency Relief Camp Alpha', { permanent: true, direction: 'right' });
 
+        // -- FETCH ROUTE FROM BACKEND --
+        try {
+            const reqBody = { origin: 'loc_riverside', destination: 'shelter_alpha', road_a_failed: state.roadAFailed };
+            const res = await fetch('/api/route', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(reqBody)
+            });
+            if (res.ok) {
+                const routeInfo = await res.json();
+                const isRerouted = routeInfo.is_rerouted;
+                const eta = routeInfo.eta_min;
+
+                if (!isRerouted) {
+                    const polyA = L.polyline(routeA.coords, { color: '#10b981', weight: 5, opacity: 0.9 }).addTo(state.routingMap);
+                    const polyB = L.polyline(routeB.coords, { color: '#64748b', weight: 3, opacity: 0.5, dashArray: '6, 6' }).addTo(state.routingMap);
+
+                    document.getElementById('active-route-title').textContent = 'Riverside Colony → Emergency Relief Camp Alpha (via NH-107)';
+                    document.getElementById('route-status-txt').textContent = 'ROUTE OPTIMAL';
+                    document.getElementById('route-status-badge').className = 'route-status-badge';
+
+                    document.getElementById('rm-eta').textContent = `${eta} min`;
+                    document.getElementById('rm-curr-risk').innerHTML = '<span class="badge badge-green">0.22 LOW</span>';
+                    document.getElementById('rm-pred-risk').innerHTML = '<span class="badge badge-green">0.34 LOW</span>';
+                    document.getElementById('rm-dist').textContent = '4.5 km';
+
+                    document.getElementById('reroute-alert-banner').classList.add('hidden');
+                    document.getElementById('route-explanation-text').textContent = routeInfo.explanation;
+                } else {
+                    const polyA = L.polyline(routeA.coords, { color: '#ef4444', weight: 5, opacity: 0.9 }).addTo(state.routingMap);
+                    const polyB = L.polyline(routeB.coords, { color: '#10b981', weight: 5, opacity: 0.9 }).addTo(state.routingMap);
+
+                    document.getElementById('active-route-title').textContent = 'Riverside Colony → Emergency Relief Camp Alpha (via Gaurikund Bypass)';
+                    document.getElementById('route-status-txt').textContent = 'REROUTED';
+                    document.getElementById('route-status-badge').className = 'route-status-badge rerouted';
+
+                    document.getElementById('rm-eta').textContent = `${eta} min (DELAY)`;
+                    document.getElementById('rm-curr-risk').innerHTML = '<span class="badge badge-green">0.15 LOW</span>';
+                    document.getElementById('rm-pred-risk').innerHTML = '<span class="badge badge-green">0.28 LOW</span>';
+                    document.getElementById('rm-dist').textContent = '6.8 km';
+
+                    document.getElementById('reroute-alert-banner').classList.remove('hidden');
+                    document.getElementById('route-explanation-text').textContent = routeInfo.explanation;
+                }
+                return;
+            }
+        } catch(e) {
+            console.error("Route API failed", e);
+        }
+
+        // FALLBACK TO HARDCODED IF API FAILS
         if (!state.roadAFailed) {
             const polyA = L.polyline(routeA.coords, { color: '#10b981', weight: 5, opacity: 0.9 }).addTo(state.routingMap);
             const polyB = L.polyline(routeB.coords, { color: '#64748b', weight: 3, opacity: 0.5, dashArray: '6, 6' }).addTo(state.routingMap);
